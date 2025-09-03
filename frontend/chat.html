@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlendAI Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="chat.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="sidebar">
+            <div class="logo-section">
+                <img src="images/Blender B&W.png" alt="Blender Logo" class="sidebar-logo">
+                <span class="logo-text">BlendAI</span>
+            </div>
+
+            <button class="new-chat" id="new-chat-btn">+ New Chat</button>
+            <div class="search-box">
+                <input type="text" placeholder="Search chats..." />
+            </div>
+
+            <div class="chat-history">
+                <h3>Chat History</h3>
+                <ul id="history-list"></ul>
+            </div>
+            <div class="user-info" onclick="window.location.href='profile.html'" style="cursor: pointer;">
+                <img src="images/User.png" alt="User Avatar" class="user-avatar">
+                <span class="user-name">User</span>
+            </div>
+        </div>
+
+        <div class="main-chat">
+            <video autoplay muted loop class="chat-bg-video">
+                <source src="Images/BG Video.mp4" type="video/mp4">
+            </video>
+            <div class="messages" id="messages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="user-input" placeholder="Type a message..." />
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="chat.js"></script>
+</body>
+</html>

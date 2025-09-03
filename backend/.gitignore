@@ -1,0 +1,13 @@
+rag.py
+.env
+__pycache__
+venv
+blender_chroma_db_final
+check.py
+super_merge.py
+extract.py
+chunks.pkl
+discovered_links.json
+scraped_docs.pkl
+processed_chunks.pkl
+recursive_chroma_db

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BlendAI</title>
+  <link rel="icon" href="images/Blender Logo.png" type="image/png" />
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loader"></div>
+  </div>
+
+  <video id="bg-video" autoplay muted loop>
+    <source src="images/BG Video.mp4" type="video/mp4" />
+  </video>
+
+  <img src="images/Blender B&W.png" alt="Small Logo" class="small-logo" />
+  <div class="buttons">
+    <div class="button" id="login-btn">Login</div>
+  </div>
+
+  <div class="chat-bot-UI">
+    <div class="title-block">
+      <div class="logo-container">
+        <img src="images/Blender B&W.png" alt="Blender Logo" class="logo-img" />
+        <div class="text-container">
+          <div class="logo-text">BlendAI</div>
+          <div class="tagline">Blend Your Thoughts, Flow Ahead</div>
+        </div>
+      </div>
+    </div>
+    <div id="chat-container" class="chat-container"></div>
+    <div class="chat-box">
+      <input id="chat-input" type="text" class="chat-input" placeholder="What do you want to know?" />
+      <img class="send" src="images/Send.png" alt="Send" />
+    </div>
+  </div>
+
+  
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BlendAI Login</title>
+  <link rel="icon" href="images/Blender Logo.png" type="image/png" />
+  <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="login.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+  <video id="bg-video" autoplay muted loop>
+    <source src="images/BG Video.mp4" type="video/mp4" />
+  </video>
+
+  <h2>Blend Your Thoughts, Flow Ahead</h2>
+
+  <div class="container" id="container">
+    <div class="form-container sign-up-container">
+      <form action="#">
+        <h1>Create Account</h1>
+        <div class="social-container">
+          <a href="#" class="social google-signup-btn"><i class="fab fa-google-plus-g"></i></a>
+        </div>
+        <span>or use your email for registration</span>
+        <input type="text" placeholder="Name" />
+        <input type="email" placeholder="Email" />
+        <input type="password" placeholder="Password" />
+        <button id="signUpBtn">Sign Up</button>
+      </form>
+    </div>
+
+    <div class="form-container sign-in-container">
+      <form action="#">
+        <h1>Sign in</h1>
+        <div class="social-container">
+          <a href="#" class="social google-signin-btn"><i class="fab fa-google-plus-g"></i></a>
+        </div>
+        <span>or use your account</span>
+        <input type="email" placeholder="Email" />
+        <input type="password" placeholder="Password" />
+        <a href="#">Forgot your password?</a>
+        <button id="signInBtn">Sign In</button>
+      </form>
+    </div>
+
+    <div class="overlay-container">
+      <div class="overlay">
+        <div class="overlay-panel overlay-left">
+          <h1><img src="images/Blender B&W.png" alt="BlendAI Logo">BlendAI</h1>
+          <p>Your AI assistant for smarter decisions</p>
+          <button class="ghost" id="signIn">Sign In</button>
+        </div>
+        <div class="overlay-panel overlay-right">
+          <h1><img src="images/Blender B&W.png" alt="BlendAI Logo">BlendAI</h1>
+          <p>Join us and explore the AI world</p>
+          <button class="ghost" id="signUp">Sign Up</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>

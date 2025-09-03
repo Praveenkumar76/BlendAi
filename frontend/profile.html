@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - BlendAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="profile.css">
+</head>
+<body>
+    <!-- Background Video -->
+    <video id="bg-video" autoplay muted loop>
+        <source src="images/BG Video.mp4" type="video/mp4">
+    </video>
+
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="images/Blender B&W.png" alt="BlendAI Logo" class="logo-img">
+                <span class="logo-text">BlendAI</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="chat.html" class="nav-link">
+                    <i class="fas fa-comments"></i>
+                    <span>Chat</span>
+                </a>
+                <a href="profile.html" class="nav-link active">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="profile-container">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-avatar-container">
+                <div class="profile-avatar" id="profile-avatar">
+                    <img src="images/User.png" alt="Profile Avatar" id="avatar-img">
+                    <div class="avatar-overlay">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                </div>
+                <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+            </div>
+            <div class="profile-info">
+                <h1 class="profile-name" id="profile-name">Loading...</h1>
+                <p class="profile-email" id="profile-email">Loading...</p>
+                <div class="profile-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="total-chats">0</span>
+                        <span class="stat-label">Total Chats</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="total-messages">0</span>
+                        <span class="stat-label">Messages</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="member-since">0</span>
+                        <span class="stat-label">Days Active</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Content -->
+        <div class="profile-content">
+            <!-- Settings Panel -->
+            <div class="settings-panel">
+                <h2 class="panel-title">
+                    <i class="fas fa-cog"></i>
+                    Account Settings
+                </h2>
+                
+                <div class="settings-section">
+                    <h3>Personal Information</h3>
+                    <div class="form-group">
+                        <label for="edit-name">Full Name</label>
+                        <input type="text" id="edit-name" class="form-input" placeholder="Enter your full name">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-email">Email Address</label>
+                        <input type="email" id="edit-email" class="form-input" placeholder="Enter your email">
+                    </div>
+                    <button class="btn btn-primary" id="save-profile">
+                        <i class="fas fa-save"></i>
+                        Save Changes
+                    </button>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Security</h3>
+                    <div class="form-group">
+                        <label for="current-password">Current Password</label>
+                        <input type="password" id="current-password" class="form-input" placeholder="Enter current password">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-password">New Password</label>
+                        <input type="password" id="new-password" class="form-input" placeholder="Enter new password">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password">Confirm Password</label>
+                        <input type="password" id="confirm-password" class="form-input" placeholder="Confirm new password">
+                    </div>
+                    <button class="btn btn-secondary" id="change-password">
+                        <i class="fas fa-lock"></i>
+                        Change Password
+                    </button>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Preferences</h3>
+                    <div class="preference-item">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="dark-mode" class="toggle-input">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Dark Mode</span>
+                        </label>
+                    </div>
+                    <div class="preference-item">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="notifications" class="toggle-input" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Email Notifications</span>
+                        </label>
+                    </div>
+                    <div class="preference-item">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="auto-save" class="toggle-input" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Auto-save Chats</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Panel -->
+            <div class="activity-panel">
+                <h2 class="panel-title">
+                    <i class="fas fa-chart-line"></i>
+                    Recent Activity
+                </h2>
+                
+                <div class="activity-list" id="activity-list">
+                    <!-- Activity items will be loaded here -->
+                </div>
+
+                <div class="chat-history-section">
+                    <h3>Recent Chats</h3>
+                    <div class="chat-history-list" id="chat-history-list">
+                        <!-- Chat history will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="danger-zone">
+            <h2 class="panel-title danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                Danger Zone
+            </h2>
+            <div class="danger-actions">
+                <button class="btn btn-danger" id="export-data">
+                    <i class="fas fa-download"></i>
+                    Export My Data
+                </button>
+                <button class="btn btn-danger" id="delete-account">
+                    <i class="fas fa-trash"></i>
+                    Delete Account
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="profile.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+langchain-groq
+langchain-community
+sentence-transformers
+chromadb
+pymongo
+python-dotenv
+bcrypt
+python-jose[cryptography]

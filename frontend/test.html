@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test User Name</title>
+</head>
+<body>
+    <h1>Test User Name Display</h1>
+    <p>UserId: <span id="userId"></span></p>
+    <p>UserName: <span id="userName"></span></p>
+    
+    <script>
+        document.getElementById('userId').textContent = localStorage.getItem('userId') || 'Not found';
+        document.getElementById('userName').textContent = localStorage.getItem('userName') || 'Not found';
+    </script>
+</body>
+</html>
