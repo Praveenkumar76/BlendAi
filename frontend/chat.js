@@ -6,6 +6,7 @@ const newChatBtn = document.getElementById("new-chat-btn");
 const searchInput = document.querySelector(".search-box input");
 
 let firstMessageSaved = false;
+let currentChatId = null;
 const userId = localStorage.getItem("userId");
 
 // ------------------- LOAD INITIAL MESSAGE -------------------
@@ -17,13 +18,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (initialMessage) {
         document.title = initialMessage.length > 20 ? initialMessage.substring(0,20) + "..." : initialMessage;
         addMessage(initialMessage, "user-message");
-        simulateBotResponse(initialMessage);
         addToHistory(initialMessage);
         await sendMessageToServer(initialMessage, "user");
         firstMessageSaved = true;
         localStorage.removeItem("initialMessage");
     }
-    loadMessagesFromServer();
+    loadChatHistory();
 });
 
 // ------------------- SEND MESSAGE -------------------
@@ -47,8 +47,23 @@ async function sendMessage(messageText) {
         firstMessageSaved = true;
     }
     userInput.value = "";
-    await sendMessageToServer(messageText, "user");
-    simulateBotResponse(messageText);
+    try {
+        showTypingIndicator();
+        const response = await sendMessageToServer(messageText, "user");
+        removeTypingIndicator();
+        if (response && response.text) {
+            addMessage(response.text, "bot-message");
+            if (!currentChatId && response.chat_id) {
+                currentChatId = response.chat_id;
+            }
+        } else {
+            addMessage("I'm sorry, I couldn't generate a response. Please try again.", "bot-message");
+        }
+    } catch (error) {
+        console.error("Error sending message:", error);
+        removeTypingIndicator();
+        addMessage("I'm sorry, there was an error processing your request. Please try again.", "bot-message");
+    }
 }
 
 // ------------------- ADD MESSAGE -------------------
@@ -60,30 +75,7 @@ function addMessage(text, className) {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// ------------------- BOT RESPONSE -------------------
-async function simulateBotResponse(userText) {
-    try {
-        // Show typing indicator
-        showTypingIndicator();
-        
-        // Send message to server and get AI response
-        const response = await sendMessageToServer(userText, "user");
-        
-        // Remove typing indicator
-        removeTypingIndicator();
-        
-        // Add the AI response
-        if (response && response.text) {
-            addMessage(response.text, "bot-message");
-        } else {
-            addMessage("I'm sorry, I couldn't generate a response. Please try again.", "bot-message");
-        }
-    } catch (error) {
-        console.error("Error getting AI response:", error);
-        removeTypingIndicator();
-        addMessage("I'm sorry, there was an error processing your request. Please try again.", "bot-message");
-    }
-}
+// simulateBotResponse removed; merged into sendMessage
 
 // ------------------- TYPING INDICATOR -------------------
 function showTypingIndicator() {
@@ -124,7 +116,9 @@ searchInput.addEventListener("input", () => {
 
 // ------------------- NEW CHAT -------------------
 newChatBtn.addEventListener("click", () => {
-    window.location.href = "index.html";
+    currentChatId = null;
+    messagesDiv.innerHTML = '';
+    addMessage("Ask me anything to start a new chat.", "bot-message");
 });
 
 // ------------------- SERVER FUNCTIONS -------------------
@@ -143,7 +137,7 @@ async function sendMessageToServer(message, sender) {
         const response = await fetch("http://127.0.0.1:8003/api/chat/send-message", {
             method: "POST",
             headers: headers,
-            body: JSON.stringify({ user_id: userId, message, sender })
+            body: JSON.stringify({ user_id: userId, message, sender, chat_id: currentChatId })
         });
         
         if (response.ok) {
@@ -158,7 +152,34 @@ async function sendMessageToServer(message, sender) {
     }
 }
 
-async function loadMessagesFromServer() {
+async function loadChatMessages(chatId) {
+    if (!chatId) return;
+    
+    const authToken = localStorage.getItem('authToken');
+    const headers = {};
+    
+    // Add Authorization header if we have a JWT token (not Google OAuth)
+    if (authToken && authToken !== 'google_oauth') {
+        headers["Authorization"] = `Bearer ${authToken}`;
+    }
+    
+    try {
+        const res = await fetch(`http://127.0.0.1:8003/api/chat/get-messages/${chatId}`, {
+            headers: headers
+        });
+        if (res.ok) {
+            const data = await res.json();
+            messagesDiv.innerHTML = '';
+            if (data && data.length > 0) {
+                data.forEach(msg => addMessage(msg.text, msg.sender + "-message"));
+            }
+        }
+    } catch (err) {
+        console.error("Load Chat Messages Error:", err);
+    }
+}
+
+async function loadChatHistory() {
     if (!userId) return;
     
     const authToken = localStorage.getItem('authToken');
@@ -170,17 +191,24 @@ async function loadMessagesFromServer() {
     }
     
     try {
-        const res = await fetch(`http://127.0.0.1:8003/api/chat/get-messages/${userId}`, {
+        const res = await fetch(`http://127.0.0.1:8003/api/chat/history/${userId}`, {
             headers: headers
         });
         if (res.ok) {
-            const data = await res.json();
-            if (data && data.length > 0) {
-                data.forEach(msg => addMessage(msg.text, msg.sender + "-message"));
-            }
+            const chats = await res.json();
+            historyList.innerHTML = '';
+            chats.forEach(chat => {
+                const li = document.createElement('li');
+                li.textContent = chat.title || 'Chat';
+                li.addEventListener('click', () => {
+                    currentChatId = chat.chat_id;
+                    loadChatMessages(currentChatId);
+                });
+                historyList.appendChild(li);
+            });
         }
     } catch (err) {
-        console.error("Load Messages Error:", err);
+        console.error('Load Chat History Error:', err);
     }
 }
 

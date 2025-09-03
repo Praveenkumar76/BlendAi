@@ -147,6 +147,7 @@ class MessageCreate(BaseModel):
     user_id: str
     message: str
     sender: str  # "user" or "bot"
+    chat_id: Optional[str] = None
 
 class MessageResponse(BaseModel):
     message_id: str
@@ -239,45 +240,46 @@ async def get_user(user_id: str, db: MongoDBManager = Depends(get_db_manager)):
 
 @app.post("/api/chat/send-message", response_model=MessageResponse)
 async def send_message(message: MessageCreate, db: MongoDBManager = Depends(get_db_manager)):
-    """Send a message and get AI response"""
+    """Send a message and get AI response. Supports multi-session via optional chat_id."""
     # Verify user exists
     user = db.get_user_by_id(message.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Get or create chat for user
-    chat_id = db.get_or_create_user_chat(message.user_id)
-    
+
+    # Determine chat_id: use provided or create new with title = first 50 chars
+    chat_id = message.chat_id
+    if not chat_id:
+        title = (message.message or "").strip()
+        title = title[:50] if title else "New Chat"
+        chat_id = db.create_chat(message.user_id, title)
+
     # Save user message
-    user_message_id = db.save_message(chat_id, message.user_id, message.message, "user")
-    
-    # Get AI response
+    db.save_message(chat_id, message.user_id, message.message, "user")
+
+    # Get AI response and save
     try:
         ai_response = await get_ai_response(message.message)
-        
-        # Save AI response
         ai_message_id = db.save_message(chat_id, message.user_id, ai_response, "bot")
-        
-        # Get the AI message for response
+
+        # Retrieve the just-saved AI message for response
         ai_messages = db.get_chat_messages(message.user_id, chat_id)
         ai_message = next((msg for msg in ai_messages if msg["message_id"] == ai_message_id), None)
-        
         if ai_message:
+            # Ensure the response includes the correct chat_id
+            ai_message["chat_id"] = chat_id
             return MessageResponse(**ai_message)
-        else:
-            raise Exception("Failed to retrieve AI message")
-        
+        raise Exception("Failed to retrieve AI message")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating AI response: {str(e)}")
 
-@app.get("/api/chat/get-messages/{user_id}", response_model=List[MessageResponse])
-async def get_messages(user_id: str, db: MongoDBManager = Depends(get_db_manager)):
-    """Get all messages for a user"""
-    user = db.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    messages = db.get_chat_messages(user_id)
+@app.get("/api/chat/get-messages/{chat_id}", response_model=List[MessageResponse])
+async def get_messages(chat_id: str, db: MongoDBManager = Depends(get_db_manager)):
+    """Get all messages for a specific chat session"""
+    # messages filtered by chat_id only; access control should be enforced by token in real-world use
+    messages = db.get_chat_messages(user_id="", chat_id=chat_id)
+    # Ensure chat_id in response
+    for msg in messages:
+        msg["chat_id"] = chat_id
     return [MessageResponse(**msg) for msg in messages]
 
 @app.get("/api/chat/history/{user_id}", response_model=List[ChatResponse])
