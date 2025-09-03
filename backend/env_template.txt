@@ -1,6 +1,0 @@
-
-# Optional: Customize the model
-# GROQ_MODEL_NAME=llama3-70b-8192
-
-# Optional: Customize the database path
-# PERSIST_DIRECTORY=./recursive_chroma_db

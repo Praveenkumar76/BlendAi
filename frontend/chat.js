@@ -164,6 +164,10 @@ async function loadChatMessages(chatId) {
     }
     
     try {
+        // Clear and show loading state
+        messagesDiv.innerHTML = '';
+        addMessage('Loading chat...', 'bot-message');
+
         const res = await fetch(`http://127.0.0.1:8003/api/chat/get-messages/${chatId}`, {
             headers: headers
         });
@@ -198,6 +202,10 @@ async function loadChatHistory() {
             const chats = await res.json();
             historyList.innerHTML = '';
             chats.forEach(chat => {
+                // Skip redundant placeholder chats
+                if ((chat.title || '').trim() === 'New Chat') {
+                    return;
+                }
                 const li = document.createElement('li');
                 li.textContent = chat.title || 'Chat';
                 li.addEventListener('click', () => {

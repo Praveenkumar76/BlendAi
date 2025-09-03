@@ -11,3 +11,4 @@ discovered_links.json
 scraped_docs.pkl
 processed_chunks.pkl
 recursive_chroma_db
+extract1.py

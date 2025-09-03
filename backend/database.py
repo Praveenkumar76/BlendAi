@@ -230,13 +230,19 @@ class MongoDBManager:
         except Exception as e:
             raise Exception(f"Error saving message: {str(e)}")
     
-    def get_chat_messages(self, user_id: str, chat_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get all messages for a user, optionally filtered by chat_id"""
+    def get_chat_messages(self, user_id: Optional[str] = None, chat_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all messages, prioritized by chat_id if provided."""
         try:
-            query = {"user_id": user_id}
+            query: Dict[str, Any] = {}
+            # Primary: filter by chat_id when provided
             if chat_id:
                 query["chat_id"] = chat_id
-            
+            # Fallback: filter by user_id when chat_id is not provided
+            elif user_id:
+                query["user_id"] = user_id
+            else:
+                return []
+
             messages = list(self.messages.find(query).sort("timestamp", 1))
             for message in messages:
                 message['_id'] = str(message['_id'])
