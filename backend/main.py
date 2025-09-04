@@ -15,12 +15,12 @@ from database import get_db_manager, MongoDBManager
 load_dotenv()
 
 # --- CONFIGURATION ---
-PERSIST_DIRECTORY = "./blender_chroma_db_final"
+PERSIST_DIRECTORY = "./recursive_chroma_db"
 EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 # Corrected to a current, active model on Groq
 GROQ_MODEL_NAME = "openai/gpt-oss-120b" 
 # A list of all collections you want the API to search across
-COLLECTION_NAMES = ["merged_collection", "langchain"]
+COLLECTION_NAMES = ["web_content"]
 
 # --- DATABASE ABSTRACTION CLASS ---
 
@@ -78,7 +78,22 @@ app = FastAPI(title="Blender RAG API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 print("Loading embedding model...")
-embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME, device='cpu')
+embedding_model = None
+try:
+    # Try to load the primary model
+    embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME, device='cpu')
+    print("✅ Embedding model loaded successfully")
+except Exception as e:
+    print(f"❌ Failed to load primary embedding model: {e}")
+    try:
+        # Try a simpler fallback model
+        print("Trying fallback embedding model...")
+        embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+        print("✅ Fallback embedding model loaded successfully")
+    except Exception as e2:
+        print(f"❌ Failed to load fallback embedding model: {e2}")
+        print("⚠️ AI responses will be limited without embedding model")
+        embedding_model = None
 
 vector_db = VectorDatabase(path=PERSIST_DIRECTORY, collection_names=COLLECTION_NAMES)
 
@@ -296,28 +311,33 @@ async def get_chat_history(user_id: str, db: MongoDBManager = Depends(get_db_man
 
 async def get_ai_response(question: str) -> str:
     """Get AI response using the RAG system"""
+    # Check if embedding model is available
+    if embedding_model is None:
+        return "I'm sorry, the AI system is currently unavailable due to a technical issue. Please try again later or contact support."
+    
     if not vector_db.is_ready():
         return "I'm sorry, the AI system is currently unavailable. Please try again later."
     
-    # Generate embedding
-    question_embedding = embedding_model.encode(question).tolist()
-    
-    # Search the database
-    search_results = vector_db.query(query_embedding=question_embedding, n_results=5)
-    context_chunks = search_results["documents"]
-    metadatas = search_results["metadatas"]
+    try:
+        # Generate embedding
+        question_embedding = embedding_model.encode(question).tolist()
+        
+        # Search the database
+        search_results = vector_db.query(query_embedding=question_embedding, n_results=5)
+        context_chunks = search_results["documents"]
+        metadatas = search_results["metadatas"]
 
-    if not context_chunks:
-        return "I'm sorry, I could not find any relevant information for your question in the Blender knowledge base."
-    
-    # Create context for the LLM
-    context = "\n\n---\n\n".join(context_chunks)
-    
-    # Generate response
-    if USE_GROQ:
-        try:
-            prompt = f"""You are an expert assistant for Blender. First, try to answer the user's question using ONLY the context provided.
-            If the context is not helpful or does not contain the answer, you may use your general knowledge to answer the question about Blender.
+        if not context_chunks:
+            return "I'm sorry, I could not find any relevant information for your question in the Blender knowledge base."
+        
+        # Create context for the LLM
+        context = "\n\n---\n\n".join(context_chunks)
+        
+        # Generate response
+        if USE_GROQ:
+            try:
+                prompt = f"""You are an expert assistant for Blender. First, try to answer the user's question using ONLY the context provided.
+                If the context is not helpful or does not contain the answer, you may use your general knowledge to answer the question about Blender.
 CONTEXT:
 {context}
 
@@ -325,20 +345,23 @@ USER QUESTION: {question}
 
 Please provide a comprehensive answer based on the context above:"""
 
-            completion = groq_client.chat.completions.create(
-                model=GROQ_MODEL_NAME,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                max_tokens=2048
-            )
-            answer = completion.choices[0].message.content
-            answer += f"\n\n*Source: {len(context_chunks)} relevant guides from the Blender knowledge base.*"
-            return answer
-        except Exception as e:
-            print(f"Error calling Groq API: {e}")
+                completion = groq_client.chat.completions.create(
+                    model=GROQ_MODEL_NAME,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.2,
+                    max_tokens=2048
+                )
+                answer = completion.choices[0].message.content
+                answer += f"\n\n*Source: {len(context_chunks)} relevant guides from the Blender knowledge base.*"
+                return answer
+            except Exception as e:
+                print(f"Error calling Groq API: {e}")
+                return generate_fallback_response(question, context_chunks, metadatas)
+        else:
             return generate_fallback_response(question, context_chunks, metadatas)
-    else:
-        return generate_fallback_response(question, context_chunks, metadatas)
+    except Exception as e:
+        print(f"Error in get_ai_response: {e}")
+        return "I'm sorry, there was an error processing your request. Please try again."
 
 # --- AI QUERY ENDPOINT ---
 

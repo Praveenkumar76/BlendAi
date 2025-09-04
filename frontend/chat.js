@@ -4,57 +4,51 @@ const messagesDiv = document.getElementById("messages");
 const historyList = document.getElementById("history-list");
 const newChatBtn = document.getElementById("new-chat-btn");
 const searchInput = document.querySelector(".search-box input");
-
-let firstMessageSaved = false;
+ 
 let currentChatId = null;
 const userId = localStorage.getItem("userId");
 
-// ------------------- LOAD INITIAL MESSAGE -------------------
+// --- INITIALIZATION ---
 window.addEventListener("DOMContentLoaded", async () => {
-    // Load user details and update the display
-    await loadUserDetails();
+    if (!userId) {
+        // Redirect to login if user is not authenticated
+        window.location.href = 'login.html';
+        return;
+    }
     
-    const initialMessage = localStorage.getItem("initialMessage");
-    if (initialMessage) {
-        document.title = initialMessage.length > 20 ? initialMessage.substring(0,20) + "..." : initialMessage;
-        addMessage(initialMessage, "user-message");
-        addToHistory(initialMessage);
-        await sendMessageToServer(initialMessage, "user");
-        firstMessageSaved = true;
-        localStorage.removeItem("initialMessage");
-    }
-    loadChatHistory();
+    await loadUserDetails();
+    await loadChatHistory();
+    addMessage("Hello! How can I help you with Blender today?", "bot-message");
 });
 
-// ------------------- SEND MESSAGE -------------------
-sendBtn.addEventListener("click", () => {
-    const msg = userInput.value.trim();
-    if (msg) sendMessage(msg);
-});
-
+// --- MESSAGE SENDING ---
+sendBtn.addEventListener("click", handleSendMessage);
 userInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        const msg = userInput.value.trim();
-        if (msg) sendMessage(msg);
+        handleSendMessage();
     }
 });
 
-async function sendMessage(messageText) {
+async function handleSendMessage() {
+    const messageText = userInput.value.trim();
+    if (!messageText) return;
+    
     addMessage(messageText, "user-message");
-    if (!firstMessageSaved) {
-        addToHistory(messageText);
-        firstMessageSaved = true;
-    }
     userInput.value = "";
+    
+    showTypingIndicator();
+
     try {
-        showTypingIndicator();
         const response = await sendMessageToServer(messageText, "user");
         removeTypingIndicator();
+        
         if (response && response.text) {
             addMessage(response.text, "bot-message");
+            // If this is the first message of a new chat, update history
             if (!currentChatId && response.chat_id) {
                 currentChatId = response.chat_id;
+                await loadChatHistory(); // Refresh history to show the new chat
             }
         } else {
             addMessage("I'm sorry, I couldn't generate a response. Please try again.", "bot-message");
@@ -66,28 +60,28 @@ async function sendMessage(messageText) {
     }
 }
 
-// ------------------- ADD MESSAGE -------------------
+// --- UI UPDATES ---
 function addMessage(text, className) {
     const msgDiv = document.createElement("div");
     msgDiv.classList.add("message", className);
-    msgDiv.textContent = text;
+
+    if (className.includes("bot-message")) {
+        // Use the 'marked' library to parse the entire Markdown text into HTML
+        // This handles paragraphs, lists, bold, italics, etc.
+        msgDiv.innerHTML = marked.parse(text);
+    } else {
+        // For user messages, always use textContent to prevent security risks
+        msgDiv.textContent = text;
+    }
+
     messagesDiv.appendChild(msgDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// simulateBotResponse removed; merged into sendMessage
-
-// ------------------- TYPING INDICATOR -------------------
 function showTypingIndicator() {
     const typingDiv = document.createElement("div");
     typingDiv.classList.add("message", "bot-message", "typing-indicator");
-    typingDiv.innerHTML = `
-        <div class="typing-dots">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-    `;
+    typingDiv.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
     messagesDiv.appendChild(typingDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
@@ -99,14 +93,13 @@ function removeTypingIndicator() {
     }
 }
 
-// ------------------- CHAT HISTORY -------------------
-function addToHistory(text) {
-    const historyItem = document.createElement("li");
-    historyItem.textContent = text.length > 20 ? text.substring(0,20) + "..." : text;
-    historyList.appendChild(historyItem);
-}
+// --- CHAT HISTORY & MANAGEMENT ---
+newChatBtn.addEventListener("click", () => {
+    currentChatId = null;
+    messagesDiv.innerHTML = '';
+    addMessage("Ask me anything to start a new chat.", "bot-message");
+});
 
-// ------------------- SEARCH HISTORY -------------------
 searchInput.addEventListener("input", () => {
     const query = searchInput.value.toLowerCase();
     historyList.querySelectorAll("li").forEach(item => {
@@ -114,24 +107,13 @@ searchInput.addEventListener("input", () => {
     });
 });
 
-// ------------------- NEW CHAT -------------------
-newChatBtn.addEventListener("click", () => {
-    currentChatId = null;
-    messagesDiv.innerHTML = '';
-    addMessage("Ask me anything to start a new chat.", "bot-message");
-});
-
-// ------------------- SERVER FUNCTIONS -------------------
+// --- SERVER COMMUNICATION ---
 async function sendMessageToServer(message, sender) {
-    if (!userId) return;
-    
     const authToken = localStorage.getItem('authToken');
-    const headers = { "Content-Type": "application/json" };
-    
-    // Add Authorization header if we have a JWT token (not Google OAuth)
-    if (authToken && authToken !== 'google_oauth') {
-        headers["Authorization"] = `Bearer ${authToken}`;
-    }
+    const headers = { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${authToken}`
+    };
     
     try {
         const response = await fetch("http://127.0.0.1:8003/api/chat/send-message", {
@@ -140,12 +122,9 @@ async function sendMessageToServer(message, sender) {
             body: JSON.stringify({ user_id: userId, message, sender, chat_id: currentChatId })
         });
         
-        if (response.ok) {
-            const data = await response.json();
-            return data;
-        } else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+
     } catch (err) {
         console.error("Send Message Error:", err);
         throw err;
@@ -153,63 +132,51 @@ async function sendMessageToServer(message, sender) {
 }
 
 async function loadChatMessages(chatId) {
-    if (!chatId) return;
-    
     const authToken = localStorage.getItem('authToken');
-    const headers = {};
-    
-    // Add Authorization header if we have a JWT token (not Google OAuth)
-    if (authToken && authToken !== 'google_oauth') {
-        headers["Authorization"] = `Bearer ${authToken}`;
-    }
+    const headers = { "Authorization": `Bearer ${authToken}` };
     
     try {
-        // Clear and show loading state
         messagesDiv.innerHTML = '';
         addMessage('Loading chat...', 'bot-message');
 
-        const res = await fetch(`http://127.0.0.1:8003/api/chat/get-messages/${chatId}`, {
-            headers: headers
-        });
+        const res = await fetch(`http://127.0.0.1:8003/api/chat/get-messages/${chatId}`, { headers });
         if (res.ok) {
-            const data = await res.json();
-            messagesDiv.innerHTML = '';
-            if (data && data.length > 0) {
-                data.forEach(msg => addMessage(msg.text, msg.sender + "-message"));
-            }
+            const messages = await res.json();
+            messagesDiv.innerHTML = ''; // Clear "Loading..." message
+            messages.forEach(msg => addMessage(msg.text, `${msg.sender}-message`));
+        } else {
+             messagesDiv.innerHTML = '';
+             addMessage('Failed to load chat messages.', 'bot-message');
         }
     } catch (err) {
         console.error("Load Chat Messages Error:", err);
+        messagesDiv.innerHTML = '';
+        addMessage('Error loading chat. Please check the console.', 'bot-message');
     }
 }
 
 async function loadChatHistory() {
-    if (!userId) return;
-    
     const authToken = localStorage.getItem('authToken');
-    const headers = {};
-    
-    // Add Authorization header if we have a JWT token (not Google OAuth)
-    if (authToken && authToken !== 'google_oauth') {
-        headers["Authorization"] = `Bearer ${authToken}`;
-    }
-    
+    const headers = { "Authorization": `Bearer ${authToken}` };
+
     try {
-        const res = await fetch(`http://127.0.0.1:8003/api/chat/history/${userId}`, {
-            headers: headers
-        });
+        const res = await fetch(`http://127.0.0.1:8003/api/chat/history/${userId}`, { headers });
         if (res.ok) {
             const chats = await res.json();
             historyList.innerHTML = '';
+            // Sort chats by most recent first
+            chats.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+            
             chats.forEach(chat => {
-                // Skip redundant placeholder chats
-                if ((chat.title || '').trim() === 'New Chat') {
-                    return;
-                }
                 const li = document.createElement('li');
                 li.textContent = chat.title || 'Chat';
+                li.dataset.chatId = chat.chat_id;
+                
                 li.addEventListener('click', () => {
                     currentChatId = chat.chat_id;
+                    // Visually mark the active chat
+                    document.querySelectorAll('#history-list li').forEach(item => item.style.backgroundColor = '');
+                    li.style.backgroundColor = '#222';
                     loadChatMessages(currentChatId);
                 });
                 historyList.appendChild(li);
@@ -220,27 +187,13 @@ async function loadChatHistory() {
     }
 }
 
-// ------------------- LOAD USER DETAILS -------------------
 async function loadUserDetails() {
     const userNameElement = document.querySelector('.user-name');
-    
-    if (!userId) {
-        console.log('No userId found in localStorage');
-        return;
-    }
-    
     const authToken = localStorage.getItem('authToken');
-    const headers = {};
-    
-    // Add Authorization header if we have a JWT token (not Google OAuth)
-    if (authToken && authToken !== 'google_oauth') {
-        headers["Authorization"] = `Bearer ${authToken}`;
-    }
+    const headers = { "Authorization": `Bearer ${authToken}` };
     
     try {
-        const response = await fetch(`http://127.0.0.1:8003/api/users/${userId}`, {
-            headers: headers
-        });
+        const response = await fetch(`http://127.0.0.1:8003/api/users/${userId}`, { headers });
         if (response.ok) {
             const userData = await response.json();
             if (userNameElement && userData.name) {
@@ -248,13 +201,11 @@ async function loadUserDetails() {
             }
         } else {
             console.error('Failed to fetch user data:', response.status);
+            // Fallback to locally stored name if available
+            userNameElement.textContent = localStorage.getItem('userName') || 'User';
         }
     } catch (error) {
         console.error('Error fetching user data:', error);
-        // Fallback to localStorage
-        const storedUserName = localStorage.getItem('userName');
-        if (storedUserName && storedUserName !== 'undefined' && userNameElement) {
-            userNameElement.textContent = storedUserName;
-        }
+        userNameElement.textContent = localStorage.getItem('userName') || 'User';
     }
 }
