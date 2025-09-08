@@ -183,6 +183,9 @@ class Query(BaseModel):
     text: str
     user_id: Optional[str] = None
 
+class ChatRename(BaseModel):
+    new_title: str
+
 # --- AUTHENTICATION ---
 security = HTTPBearer()
 
@@ -306,6 +309,22 @@ async def get_chat_history(user_id: str, db: MongoDBManager = Depends(get_db_man
     
     chats = db.get_user_chats(user_id)
     return [ChatResponse(**chat) for chat in chats]
+
+@app.put("/api/chat/rename/{chat_id}")
+async def rename_chat(chat_id: str, chat_rename: ChatRename, db: MongoDBManager = Depends(get_db_manager)):
+    """Rename a chat session."""
+    success = db.rename_chat(chat_id, chat_rename.new_title)
+    if not success:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    return {"status": "success", "message": "Chat renamed successfully."}
+
+@app.delete("/api/chat/delete/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_chat(chat_id: str, db: MongoDBManager = Depends(get_db_manager)):
+    """Delete a chat session and all its messages."""
+    success = db.delete_chat(chat_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    return
 
 # --- AI RESPONSE FUNCTION ---
 

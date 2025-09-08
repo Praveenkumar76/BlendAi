@@ -44,6 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------- LOGIN BUTTON REDIRECTION -------------------
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) {
+        // Only hide login when BOTH a valid userId and token exist
+        const storedUserId = localStorage.getItem('userId');
+        const storedToken = localStorage.getItem('authToken');
+        const hasValidUserId = !!(storedUserId && storedUserId !== 'undefined' && storedUserId !== 'null');
+        const hasValidToken = !!(storedToken && storedToken !== 'undefined' && storedToken !== 'null');
+        const isLoggedIn = hasValidUserId && hasValidToken;
+
+        // Ensure the button is visible by default on fresh open
+        loginBtn.style.display = isLoggedIn ? 'none' : 'block';
+
         loginBtn.addEventListener('click', () => {
             window.location.href = 'login.html'; // Redirects to the login page
         });

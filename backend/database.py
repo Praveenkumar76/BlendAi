@@ -70,6 +70,32 @@ class MongoDBManager:
         except Exception as e:
             print(f"⚠️ Warning: Could not create indexes: {e}")
     
+    def rename_chat(self, chat_id: str, new_title: str) -> bool:
+        """Updates the title of a specific chat."""
+        try:
+            result = self.chats.update_one(
+                {"chat_id": chat_id},
+                {"$set": {"title": new_title}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error renaming chat: {e}")
+            return False
+
+    def delete_chat(self, chat_id: str) -> bool:
+        """Deletes a chat and all its associated messages."""
+        try:
+            # First, delete all messages associated with the chat
+            self.messages.delete_many({"chat_id": chat_id})
+            
+            # Then, delete the chat document itself
+            result = self.chats.delete_one({"chat_id": chat_id})
+            
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error deleting chat: {e}")
+            return False
+    
     def is_connected(self) -> bool:
         """Check if MongoDB connection is active"""
         try:

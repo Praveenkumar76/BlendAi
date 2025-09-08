@@ -9,12 +9,10 @@
     <link rel="stylesheet" href="profile.css">
 </head>
 <body>
-    <!-- Background Video -->
     <video id="bg-video" autoplay muted loop>
         <source src="images/BG Video.mp4" type="video/mp4">
     </video>
 
-    <!-- Navigation Header -->
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-logo">
@@ -38,9 +36,7 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <div class="profile-container">
-        <!-- Profile Header -->
         <div class="profile-header">
             <div class="profile-avatar-container">
                 <div class="profile-avatar" id="profile-avatar">
@@ -71,9 +67,7 @@
             </div>
         </div>
 
-        <!-- Profile Content -->
         <div class="profile-content">
-            <!-- Settings Panel -->
             <div class="settings-panel">
                 <h2 class="panel-title">
                     <i class="fas fa-cog"></i>
@@ -88,7 +82,7 @@
                     </div>
                     <div class="form-group">
                         <label for="edit-email">Email Address</label>
-                        <input type="email" id="edit-email" class="form-input" placeholder="Enter your email">
+                        <input type="email" id="edit-email" class="form-input" placeholder="Enter your email" disabled>
                     </div>
                     <button class="btn btn-primary" id="save-profile">
                         <i class="fas fa-save"></i>
@@ -120,21 +114,21 @@
                     <h3>Preferences</h3>
                     <div class="preference-item">
                         <label class="toggle-label">
-                            <input type="checkbox" id="dark-mode" class="toggle-input">
+                            <input type="checkbox" id="dark-mode" class="toggle-input" data-preference="darkMode">
                             <span class="toggle-slider"></span>
                             <span class="toggle-text">Dark Mode</span>
                         </label>
                     </div>
                     <div class="preference-item">
                         <label class="toggle-label">
-                            <input type="checkbox" id="notifications" class="toggle-input" checked>
+                            <input type="checkbox" id="notifications" class="toggle-input" data-preference="notifications" checked>
                             <span class="toggle-slider"></span>
                             <span class="toggle-text">Email Notifications</span>
                         </label>
                     </div>
                     <div class="preference-item">
                         <label class="toggle-label">
-                            <input type="checkbox" id="auto-save" class="toggle-input" checked>
+                            <input type="checkbox" id="auto-save" class="toggle-input" data-preference="autoSave" checked>
                             <span class="toggle-slider"></span>
                             <span class="toggle-text">Auto-save Chats</span>
                         </label>
@@ -142,7 +136,6 @@
                 </div>
             </div>
 
-            <!-- Activity Panel -->
             <div class="activity-panel">
                 <h2 class="panel-title">
                     <i class="fas fa-chart-line"></i>
@@ -150,19 +143,16 @@
                 </h2>
                 
                 <div class="activity-list" id="activity-list">
-                    <!-- Activity items will be loaded here -->
-                </div>
+                    </div>
 
                 <div class="chat-history-section">
                     <h3>Recent Chats</h3>
                     <div class="chat-history-list" id="chat-history-list">
-                        <!-- Chat history will be loaded here -->
-                    </div>
+                        </div>
                 </div>
             </div>
         </div>
 
-        <!-- Danger Zone -->
         <div class="danger-zone">
             <h2 class="panel-title danger">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -181,7 +171,6 @@
         </div>
     </div>
 
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loading-overlay">
         <div class="loading-spinner">
             <i class="fas fa-spinner fa-spin"></i>
@@ -189,7 +178,6 @@
         </div>
     </div>
 
-    <!-- Toast Notifications -->
     <div class="toast-container" id="toast-container"></div>
 
     <script src="profile.js"></script>
