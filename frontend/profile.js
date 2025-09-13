@@ -22,10 +22,38 @@ class ProfileManager {
     }
 
     setupEventListeners() {
-        // Avatar upload
-        document.getElementById('profile-avatar').addEventListener('click', () => {
-            document.getElementById('avatar-upload').click();
+        // Avatar dropdown functionality
+        const profileAvatar = document.getElementById('profile-avatar');
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const changeAvatarOption = document.getElementById('change-avatar-option');
+        const signoutOption = document.getElementById('signout-option');
+
+        // Toggle dropdown on avatar click
+        profileAvatar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            profileDropdown.classList.toggle('show');
         });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!profileAvatar.contains(e.target) && !profileDropdown.contains(e.target)) {
+                profileDropdown.classList.remove('show');
+            }
+        });
+
+        // Change avatar option
+        changeAvatarOption.addEventListener('click', () => {
+            document.getElementById('avatar-upload').click();
+            profileDropdown.classList.remove('show');
+        });
+
+        // Sign out option
+        signoutOption.addEventListener('click', () => {
+            this.signOut();
+            profileDropdown.classList.remove('show');
+        });
+
+        // Avatar upload
         document.getElementById('avatar-upload').addEventListener('change', (e) => {
             this.handleAvatarUpload(e.target.files[0]);
         });
@@ -285,6 +313,15 @@ class ProfileManager {
         } catch (error) {
             this.showToast(`Error: ${error.message}`, 'error');
             this.hideLoading();
+        }
+    }
+
+    signOut() {
+        if (confirm('Are you sure you want to sign out?')) {
+            this.addActivity('Signed Out', 'fas fa-sign-out-alt');
+            this.showToast('Signing out...', 'info');
+            localStorage.clear();
+            setTimeout(() => { window.location.href = 'index.html'; }, 1000);
         }
     }
 

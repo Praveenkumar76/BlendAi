@@ -41,9 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
         sendBtn.addEventListener('click', addChatMessageAndRedirect);
     }
 
-    // ------------------- LOGIN BUTTON REDIRECTION -------------------
+    // ------------------- LOGIN BUTTON AND PROFILE AVATAR REDIRECTION -------------------
     const loginBtn = document.getElementById('login-btn');
-    if (loginBtn) {
+    const mainProfileContainer = document.getElementById('main-profile-container');
+    const mainProfileAvatar = document.getElementById('main-profile-avatar');
+    const mainProfileDropdown = document.getElementById('main-profile-dropdown');
+    const mainProfileOption = document.getElementById('main-profile-option');
+    const mainSignoutOption = document.getElementById('main-signout-option');
+
+    if (loginBtn && mainProfileContainer) {
         // Only hide login when BOTH a valid userId and token exist
         const storedUserId = localStorage.getItem('userId');
         const storedToken = localStorage.getItem('authToken');
@@ -51,12 +57,48 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasValidToken = !!(storedToken && storedToken !== 'undefined' && storedToken !== 'null');
         const isLoggedIn = hasValidUserId && hasValidToken;
 
-        // Ensure the button is visible by default on fresh open
+        // Show/hide appropriate elements
         loginBtn.style.display = isLoggedIn ? 'none' : 'block';
+        mainProfileContainer.style.display = isLoggedIn ? 'block' : 'none';
 
         loginBtn.addEventListener('click', () => {
             window.location.href = 'login.html'; // Redirects to the login page
         });
+    }
+
+    // Main profile avatar dropdown functionality
+    if (mainProfileAvatar && mainProfileDropdown) {
+        // Toggle dropdown on avatar click
+        mainProfileAvatar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mainProfileDropdown.classList.toggle('show');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!mainProfileAvatar.contains(e.target) && !mainProfileDropdown.contains(e.target)) {
+                mainProfileDropdown.classList.remove('show');
+            }
+        });
+
+        // Profile option
+        if (mainProfileOption) {
+            mainProfileOption.addEventListener('click', () => {
+                window.location.href = 'profile.html';
+                mainProfileDropdown.classList.remove('show');
+            });
+        }
+
+        // Sign out option
+        if (mainSignoutOption) {
+            mainSignoutOption.addEventListener('click', () => {
+                if (confirm('Are you sure you want to sign out?')) {
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                }
+                mainProfileDropdown.classList.remove('show');
+            });
+        }
     }
 
     // ------------------- AVATAR AND ARROW FUNCTIONALITY -------------------

@@ -7,6 +7,7 @@
   <link rel="icon" href="images/Blender-Logo.png" type="image/png" />
   <link rel="stylesheet" href="style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <div id="loading-screen">
@@ -20,6 +21,21 @@
   <img src="images/Blender B&W.png" alt="Small Logo" class="small-logo" />
   <div class="buttons">
     <div class="button" id="login-btn">Login</div>
+    <div class="profile-avatar-container" id="main-profile-container" style="display: none;">
+      <div class="profile-avatar" id="main-profile-avatar">
+        <img src="images/User.png" alt="Profile Avatar" id="main-avatar-img">
+      </div>
+      <div class="profile-dropdown" id="main-profile-dropdown">
+        <div class="dropdown-item" id="main-profile-option">
+          <i class="fas fa-user"></i>
+          <span>Profile</span>
+        </div>
+        <div class="dropdown-item" id="main-signout-option">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Sign Out</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="chat-bot-UI">

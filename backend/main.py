@@ -44,8 +44,8 @@ class VectorDatabase:
 
     def query(self, query_embedding: list[float], n_results: int = 5) -> dict:
         """
-        Searches all loaded collections, combines, and re-ranks the results.
-        Returns a dictionary containing the top documents and their metadata.
+        Searches all loaded collections, combines, re-ranks the results,
+        and returns documents, metadata, AND distances.
         """
         all_results = []
         for collection in self.collections:
@@ -69,9 +69,11 @@ class VectorDatabase:
         # Extract the top N overall results
         top_documents = [item['document'] for item in all_results[:n_results]]
         top_metadatas = [item['metadata'] for item in all_results[:n_results]]
+        # --- CRUCIAL CHANGE: Capture the distances ---
+        top_distances = [item['distance'] for item in all_results[:n_results]]
         
-        return {"documents": top_documents, "metadatas": top_metadatas}
-
+        # --- CRUCIAL CHANGE: Return the distances ---
+        return {"documents": top_documents, "metadatas": top_metadatas, "distances": top_distances}
 # --- INITIALIZE SERVICES ---
 
 app = FastAPI(title="Blender RAG API")
@@ -356,7 +358,7 @@ async def get_ai_response(question: str) -> str:
         if USE_GROQ:
             try:
                 prompt = f"""You are an expert assistant for Blender. First, try to answer the user's question using ONLY the context provided.
-                If the context is not helpful or does not contain the answer, you may use your general knowledge to answer the question about Blender.
+                If the says about negative about you or blender, just say sorry for things in proper manner and If the context is not helpful or does not contain the answer, just say this not in my context of blender something polished. you may use your general knowledge to answer the question about Blender. NOTE this please doesn't provide anything apart from blender, mathematics, physics.
 CONTEXT:
 {context}
 
@@ -381,6 +383,70 @@ Please provide a comprehensive answer based on the context above:"""
     except Exception as e:
         print(f"Error in get_ai_response: {e}")
         return "I'm sorry, there was an error processing your request. Please try again."
+
+# async def get_ai_response(question: str) -> str:
+#     """
+#     Get AI response using a robust RAG system with a system-role prompt to enforce persona.
+#     """
+#     if embedding_model is None or not vector_db.is_ready():
+#         return "I'm sorry, the AI system is currently unavailable. Please try again."
+
+#     try:
+#         question_embedding = embedding_model.encode(question).tolist()
+#         search_results = vector_db.query(query_embedding=question_embedding, n_results=5)
+#         context_chunks = search_results.get("documents", [])
+#         distances = search_results.get("distances", [])
+
+#         RELEVANCY_THRESHOLD = 0.6
+#         if not context_chunks or distances[0] > RELEVANCY_THRESHOLD:
+#             # This guardrail correctly handles off-topic questions before they reach the LLM.
+#             # The canned response clearly states its role without revealing its origin.
+#             return "I am a specialized AI assistant for Blender. My purpose is to answer questions using a dedicated Blender knowledge base."
+
+#         context = "\n\n---\n\n".join(context_chunks)
+
+#         if USE_GROQ:
+#             try:
+#                 # --- KEY CHANGE: Using a System Role for Persona Control ---
+#                 # The system message sets the "rules of the universe" for the AI.
+#                 # It's much more effective at preventing identity leakage.
+#                 system_prompt = """You are BlenderBot, a specialized AI assistant expert in the 3D software Blender.
+# - Your ONLY function is to answer questions about Blender based on the user's provided context.
+# - You MUST NOT reveal you are an AI model, language model, only mention you are a BlenderBot.
+# - Your responses must be direct and start without any preamble.
+# - If the context does not contain the answer, you MUST reply with the exact phrase: "I'm sorry, I couldn't find specific information about that in my Blender knowledge base." """
+
+#                 user_prompt = f"""CONTEXT:
+# {context}
+
+# ---
+# Based on the context above, answer the question: {question}"""
+
+#                 completion = groq_client.chat.completions.create(
+#                     model=GROQ_MODEL_NAME,
+#                     # Using the messages API with distinct system and user roles
+#                     messages=[
+#                         {"role": "system", "content": system_prompt},
+#                         {"role": "user", "content": user_prompt}
+#                     ],
+#                     temperature=0.2,
+#                     max_tokens=2048
+#                 )
+#                 answer = completion.choices[0].message.content
+
+#                 if "couldn't find specific information" not in answer:
+#                     answer += f"\n\n*Source: Based on {len(context_chunks)} relevant guides from the Blender knowledge base.*"
+                
+#                 return answer
+#             except Exception as e:
+#                 print(f"Error calling Groq API: {e}")
+#                 return "I'm sorry, an error occurred while generating the response."
+#         else:
+#             return generate_fallback_response(question, context_chunks, search_results.get("metadatas", []))
+
+#     except Exception as e:
+#         print(f"Error in get_ai_response: {e}")
+#         return "I'm sorry, there was an error processing your request. Please try again."
 
 # --- AI QUERY ENDPOINT ---
 
