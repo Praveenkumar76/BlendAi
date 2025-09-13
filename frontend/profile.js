@@ -110,7 +110,11 @@ class ProfileManager {
         document.getElementById('edit-email').value = this.userData.email;
 
         if (this.userData.profile_image) {
-            document.getElementById('avatar-img').src = this.userData.profile_image;
+            // Handle both relative and absolute URLs
+            const imageUrl = this.userData.profile_image.startsWith('http') 
+                ? this.userData.profile_image 
+                : `http://127.0.0.1:8003${this.userData.profile_image}`;
+            document.getElementById('avatar-img').src = imageUrl;
         }
         if (this.userData.preferences) {
             for (const key in this.userData.preferences) {
@@ -260,11 +264,24 @@ class ProfileManager {
 
         this.showLoading();
         const formData = new FormData();
-        formData.append('profile_image', file);
+        formData.append('file', file); // Changed from 'profile_image' to 'file' to match backend
 
         try {
-            const updatedUser = await this.apiRequest(`/users/upload-avatar/${this.userId}`, 'POST', formData); // Note: body handled differently for FormData
-            this.userData = updatedUser;
+            const response = await fetch(`http://127.0.0.1:8003/api/users/upload-avatar/${this.userId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
+                throw new Error(errorData.detail);
+            }
+
+            const result = await response.json();
+            this.userData.profile_image = result.image_url;
             this.updateProfileDisplay();
             this.addActivity('Updated Profile Picture', 'fas fa-camera');
             this.showToast('Avatar updated successfully!', 'success');

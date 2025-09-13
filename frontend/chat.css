@@ -337,3 +337,66 @@ body {
 .bot-message code {
     font-family: 'Courier New', Courier, monospace;
 }
+
+/* Shared Chat Styles */
+.shared-info {
+    background-color: #222;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.shared-info h3 {
+    margin: 0 0 10px 0;
+    color: #fff;
+    font-size: 16px;
+}
+
+.shared-info p {
+    margin: 5px 0;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.shared-footer {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.shared-footer a {
+    color: #4CAF50;
+    text-decoration: none;
+}
+
+.shared-footer a:hover {
+    text-decoration: underline;
+}
+
+.error-message {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.error-message h3 {
+    color: #f44336;
+    margin-bottom: 15px;
+}
+
+.error-message .btn {
+    display: inline-block;
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 5px;
+    margin-top: 15px;
+}
+
+.error-message .btn:hover {
+    background-color: #45a049;
+}

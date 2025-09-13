@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Chat - BlendAI</title>
+    <link rel="icon" href="images/Blender-Logo.png" type="image/png" />
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="chat.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="sidebar">
+            <div class="logo-section">
+                <img src="images/Blender B&W.png" alt="Blender Logo" class="sidebar-logo">
+                <span class="logo-text">BlendAI</span>
+            </div>
+            <div class="shared-info">
+                <h3>Shared Chat</h3>
+                <p id="shared-chat-title">Loading...</p>
+                <p id="shared-chat-date">Loading...</p>
+            </div>
+        </div>
+
+        <div class="main-chat">
+            <video autoplay muted loop class="chat-bg-video">
+                <source src="Images/BG Video.mp4" type="video/mp4">
+            </video>
+            <div class="messages" id="messages"></div>
+            <div class="shared-footer">
+                <p>This is a shared chat from BlendAI. <a href="index.html">Start your own conversation!</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared.js"></script>
+</body>
+</html>

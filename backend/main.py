@@ -1,9 +1,12 @@
 import os
 import uuid
+import base64
+import shutil
 from datetime import datetime
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 from groq import Groq
 from sentence_transformers import SentenceTransformer
@@ -21,6 +24,11 @@ EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 GROQ_MODEL_NAME = "openai/gpt-oss-120b" 
 # A list of all collections you want the API to search across
 COLLECTION_NAMES = ["web_content"]
+
+# Image upload configuration
+UPLOAD_DIR = "./uploads"
+ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 # --- DATABASE ABSTRACTION CLASS ---
 
@@ -188,27 +196,43 @@ class Query(BaseModel):
 class ChatRename(BaseModel):
     new_title: str
 
+class ChatShare(BaseModel):
+    share_token: Optional[str] = None
+    is_public: bool = False
+
 # --- AUTHENTICATION ---
 security = HTTPBearer()
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: MongoDBManager = Depends(get_db_manager)):
     """Get current user from JWT token"""
-    token = credentials.credentials
-    user_id = db.verify_jwt_token(token)
-    if not user_id:
+    try:
+        token = credentials.credentials
+        user_id = db.verify_jwt_token(token)
+        
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = db.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
 
 # --- USER MANAGEMENT ENDPOINTS ---
 
@@ -313,20 +337,208 @@ async def get_chat_history(user_id: str, db: MongoDBManager = Depends(get_db_man
     return [ChatResponse(**chat) for chat in chats]
 
 @app.put("/api/chat/rename/{chat_id}")
-async def rename_chat(chat_id: str, chat_rename: ChatRename, db: MongoDBManager = Depends(get_db_manager)):
+async def rename_chat(chat_id: str, chat_rename: ChatRename, current_user: dict = Depends(get_current_user), db: MongoDBManager = Depends(get_db_manager)):
     """Rename a chat session."""
-    success = db.rename_chat(chat_id, chat_rename.new_title)
-    if not success:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    return {"status": "success", "message": "Chat renamed successfully."}
+    try:
+        # Verify the chat belongs to the current user
+        chat = db.chats.find_one({"chat_id": chat_id, "user_id": current_user["user_id"]})
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found or access denied")
+        
+        success = db.rename_chat(chat_id, chat_rename.new_title)
+        if not success:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        return {"status": "success", "message": "Chat renamed successfully.", "new_title": chat_rename.new_title}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error renaming chat: {str(e)}")
 
-@app.delete("/api/chat/delete/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_chat(chat_id: str, db: MongoDBManager = Depends(get_db_manager)):
+@app.delete("/api/chat/delete/{chat_id}")
+async def delete_chat(chat_id: str, current_user: dict = Depends(get_current_user), db: MongoDBManager = Depends(get_db_manager)):
     """Delete a chat session and all its messages."""
-    success = db.delete_chat(chat_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    return
+    try:
+        # Verify the chat belongs to the current user
+        chat = db.chats.find_one({"chat_id": chat_id, "user_id": current_user["user_id"]})
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found or access denied")
+        
+        success = db.delete_chat(chat_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        return {"status": "success", "message": "Chat deleted successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting chat: {str(e)}")
+
+@app.post("/api/chat/share/{chat_id}")
+async def share_chat(chat_id: str, current_user: dict = Depends(get_current_user), db: MongoDBManager = Depends(get_db_manager)):
+    """Generate a shareable link for a chat session."""
+    try:
+        # Check if chat exists and belongs to the current user
+        chat = db.chats.find_one({"chat_id": chat_id, "user_id": current_user["user_id"]})
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found or access denied")
+        
+        # Generate a unique share token
+        import secrets
+        share_token = secrets.token_urlsafe(32)
+        
+        # Store share token in database
+        db.chats.update_one(
+            {"chat_id": chat_id},
+            {"$set": {"share_token": share_token, "is_public": True}}
+        )
+        
+        return {
+            "status": "success",
+            "share_token": share_token,
+            "share_url": f"http://127.0.0.1:8003/api/chat/shared/{share_token}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error sharing chat: {str(e)}")
+
+@app.get("/api/chat/shared/{share_token}")
+async def get_shared_chat(share_token: str, db: MongoDBManager = Depends(get_db_manager)):
+    """Get a shared chat by share token."""
+    try:
+        chat = db.chats.find_one({"share_token": share_token, "is_public": True})
+        if not chat:
+            raise HTTPException(status_code=404, detail="Shared chat not found or expired")
+        
+        # Get messages for this chat
+        messages = db.get_chat_messages(chat_id=chat["chat_id"])
+        
+        return {
+            "chat": {
+                "chat_id": chat["chat_id"],
+                "title": chat["title"],
+                "created_at": chat["created_at"],
+                "message_count": chat["message_count"]
+            },
+            "messages": messages
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving shared chat: {str(e)}")
+
+@app.delete("/api/chat/unshare/{chat_id}")
+async def unshare_chat(chat_id: str, current_user: dict = Depends(get_current_user), db: MongoDBManager = Depends(get_db_manager)):
+    """Remove sharing from a chat session."""
+    try:
+        # Verify the chat belongs to the current user
+        chat = db.chats.find_one({"chat_id": chat_id, "user_id": current_user["user_id"]})
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found or access denied")
+        
+        result = db.chats.update_one(
+            {"chat_id": chat_id},
+            {"$unset": {"share_token": "", "is_public": ""}}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        return {"status": "success", "message": "Chat sharing removed successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error unsharing chat: {str(e)}")
+
+# --- IMAGE UPLOAD ENDPOINTS ---
+
+# Create upload directory if it doesn't exist
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Mount static files for serving uploaded images
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+@app.post("/api/users/upload-avatar/{user_id}")
+async def upload_avatar(user_id: str, file: UploadFile = File(...), current_user: dict = Depends(get_current_user), db: MongoDBManager = Depends(get_db_manager)):
+    """Upload and update user profile image."""
+    try:
+        # Verify user exists and matches current user
+        if current_user["user_id"] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Validate file type
+        if file.content_type not in ALLOWED_IMAGE_TYPES:
+            raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.")
+        
+        # Validate file size
+        file_content = await file.read()
+        if len(file_content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB.")
+        
+        # Generate unique filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"avatar_{user_id}_{uuid.uuid4().hex}.{file_extension}"
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        
+        # Save file
+        with open(file_path, "wb") as buffer:
+            buffer.write(file_content)
+        
+        # Update user profile in database
+        image_url = f"/uploads/{filename}"
+        db.users.update_one(
+            {"user_id": user_id},
+            {"$set": {"profile_image": image_url}}
+        )
+        
+        # Delete old avatar if exists
+        if user.get("profile_image") and user["profile_image"].startswith("/uploads/"):
+            old_file_path = os.path.join(UPLOAD_DIR, user["profile_image"].split("/")[-1])
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
+        
+        return {
+            "status": "success",
+            "message": "Avatar updated successfully",
+            "image_url": image_url
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error uploading avatar: {str(e)}")
+
+@app.delete("/api/users/remove-avatar/{user_id}")
+async def remove_avatar(user_id: str, current_user: dict = Depends(get_current_user), db: MongoDBManager = Depends(get_db_manager)):
+    """Remove user profile image."""
+    try:
+        # Verify user exists and matches current user
+        if current_user["user_id"] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Remove profile image from database
+        db.users.update_one(
+            {"user_id": user_id},
+            {"$unset": {"profile_image": ""}}
+        )
+        
+        # Delete old avatar file if exists
+        if user.get("profile_image") and user["profile_image"].startswith("/uploads/"):
+            old_file_path = os.path.join(UPLOAD_DIR, user["profile_image"].split("/")[-1])
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
+        
+        return {"status": "success", "message": "Avatar removed successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error removing avatar: {str(e)}")
 
 # --- AI RESPONSE FUNCTION ---
 

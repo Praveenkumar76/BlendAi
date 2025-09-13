@@ -10,7 +10,36 @@ const userId = localStorage.getItem("userId");
 
 // --- INITIALIZATION ---
 window.addEventListener("DOMContentLoaded", async () => {
-    if (!userId) {
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!userId || !authToken) {
+        console.log('❌ Missing userId or authToken, redirecting to login');
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    // Debug: Check stored values
+    console.log('🔍 Stored userId:', userId);
+    console.log('🔍 Stored authToken:', authToken.substring(0, 50) + '...');
+    console.log('🔍 Token exists:', !!authToken);
+    
+    // Test authentication by making a simple request
+    try {
+        const response = await fetch(`http://127.0.0.1:8003/api/users/${userId}`, {
+            headers: { "Authorization": `Bearer ${authToken}` }
+        });
+        
+        if (!response.ok) {
+            console.log('❌ Token validation failed, redirecting to login');
+            localStorage.clear();
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        console.log('✅ Token validation successful');
+    } catch (error) {
+        console.log('❌ Token validation error:', error);
+        localStorage.clear();
         window.location.href = 'login.html';
         return;
     }
@@ -203,10 +232,39 @@ function handleRenameChat(chatId, titleSpan) {
     const saveRename = async () => {
         const newTitle = input.value.trim();
         if (newTitle && newTitle !== currentTitle) {
-            // TODO: Add API call to backend to save the new title
-            console.log(`Renaming chat ${chatId} to "${newTitle}"`);
-            // Example: await fetch(`/api/chat/rename/${chatId}`, { method: 'PUT', ... });
-            titleSpan.textContent = newTitle;
+            try {
+                const authToken = localStorage.getItem('authToken');
+                if (!authToken) {
+                    showToast('Please sign in again to continue.', 'error');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                console.log('Auth token exists:', !!authToken);
+                console.log('Making rename request for chat:', chatId);
+                
+                const response = await fetch(`http://127.0.0.1:8003/api/chat/rename/${chatId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ new_title: newTitle })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    titleSpan.textContent = result.new_title;
+                    showToast('Chat renamed successfully!', 'success');
+                } else {
+                    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                    throw new Error(`Failed to rename chat: ${errorData.detail || response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error renaming chat:', error);
+                showToast('Failed to rename chat. Please try again.', 'error');
+                titleSpan.textContent = currentTitle; // Revert on error
+            }
         } else {
             titleSpan.textContent = currentTitle; // Revert if empty or unchanged
         }
@@ -224,34 +282,70 @@ function handleRenameChat(chatId, titleSpan) {
 async function handleShareChat(chatId, button) {
     const originalText = button.textContent;
     try {
-        const messages = await getChatMessages(chatId);
-        if (messages) {
-            const transcript = messages.map(msg => `${msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1)}: ${msg.text}`).join('\n\n');
-            await navigator.clipboard.writeText(transcript);
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            showToast('Please sign in again to continue.', 'error');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        console.log('Making share request for chat:', chatId);
+        const response = await fetch(`http://127.0.0.1:8003/api/chat/share/${chatId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            await navigator.clipboard.writeText(result.share_url);
             button.textContent = 'Copied!';
+            showToast('Share link copied to clipboard!', 'success');
+        } else {
+            const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+            throw new Error(`Failed to generate share link: ${errorData.detail || response.statusText}`);
         }
     } catch (e) {
         console.error("Failed to share chat:", e);
         button.textContent = 'Failed!';
+        showToast('Failed to generate share link. Please try again.', 'error');
     } finally {
         setTimeout(() => { button.textContent = originalText; }, 2000);
     }
 }
 
 async function handleDeleteChat(chatId, listItemElement) {
-    if (confirm('Are you sure you want to delete this chat?')) {
+    if (confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
         try {
-            // TODO: Add API call to backend to delete the chat
-            console.log(`Deleting chat ${chatId}`);
-            // Example: const response = await fetch(`/api/chat/delete/${chatId}`, { method: 'DELETE', ... });
-            // if (response.ok) { ... }
-            listItemElement.remove();
-            if (currentChatId === chatId) {
-                newChatBtn.click(); // Reset to new chat view
+            const authToken = localStorage.getItem('authToken');
+            if (!authToken) {
+                showToast('Please sign in again to continue.', 'error');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            console.log('Making delete request for chat:', chatId);
+            const response = await fetch(`http://127.0.0.1:8003/api/chat/delete/${chatId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+            
+            if (response.ok) {
+                listItemElement.remove();
+                if (currentChatId === chatId) {
+                    newChatBtn.click(); // Reset to new chat view
+                }
+                showToast('Chat deleted successfully!', 'success');
+            } else {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                throw new Error(`Failed to delete chat: ${errorData.detail || response.statusText}`);
             }
         } catch(e) {
             console.error("Failed to delete chat:", e);
-            alert("Error: Could not delete chat.");
+            showToast('Failed to delete chat. Please try again.', 'error');
         }
     }
 }
@@ -311,6 +405,7 @@ async function loadChatMessages(chatId) {
 
 async function loadUserDetails() {
     const userNameElement = document.querySelector('.user-name');
+    const userAvatarElement = document.querySelector('.user-avatar');
     const authToken = localStorage.getItem('authToken');
     const headers = { "Authorization": `Bearer ${authToken}` };
     
@@ -321,10 +416,67 @@ async function loadUserDetails() {
             if (userNameElement && userData.name) {
                 userNameElement.textContent = userData.name;
             }
+            if (userAvatarElement && userData.profile_image) {
+                const imageUrl = userData.profile_image.startsWith('http') 
+                    ? userData.profile_image 
+                    : `http://127.0.0.1:8003${userData.profile_image}`;
+                userAvatarElement.src = imageUrl;
+            }
         } else {
             userNameElement.textContent = localStorage.getItem('userName') || 'User';
         }
     } catch (error) {
         userNameElement.textContent = localStorage.getItem('userName') || 'User';
     }
+}
+
+// --- UTILITY FUNCTIONS ---
+function showToast(message, type = 'info') {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        max-width: 300px;
+        word-wrap: break-word;
+    `;
+    toast.textContent = message;
+    
+    toastContainer.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }, 3000);
 }

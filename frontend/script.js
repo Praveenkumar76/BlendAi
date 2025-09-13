@@ -66,6 +66,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Load user profile image if available
+    const loadProfileImage = async () => {
+        const storedUserId = localStorage.getItem('userId');
+        const storedToken = localStorage.getItem('authToken');
+        if (storedUserId && storedToken) {
+            try {
+                const response = await fetch(`http://127.0.0.1:8003/api/users/${storedUserId}`, {
+                    headers: { "Authorization": `Bearer ${storedToken}` }
+                });
+                if (response.ok) {
+                    const userData = await response.json();
+                    if (userData.profile_image) {
+                        const imageUrl = userData.profile_image.startsWith('http') 
+                            ? userData.profile_image 
+                            : `http://127.0.0.1:8003${userData.profile_image}`;
+                        document.getElementById('main-avatar-img').src = imageUrl;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading profile image:', error);
+            }
+        }
+    };
+
+    // Load profile image on page load
+    loadProfileImage();
+
     // Main profile avatar dropdown functionality
     if (mainProfileAvatar && mainProfileDropdown) {
         // Toggle dropdown on avatar click
